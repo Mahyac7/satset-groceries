@@ -1,6 +1,6 @@
 # ⚡ Satset — MVP Quick-Commerce Web App
 
-Aplikasi web MVP ala **ASTRO** (on-demand grocery & essentials delivery) untuk Indonesia. Dibuat dengan Next.js + React + Tailwind CSS. Semua data produk dan pembayaran disimulasikan (tidak ada backend/transaksi nyata).
+Aplikasi web MVP ala **ASTRO** (on-demand grocery & essentials delivery) untuk Indonesia. Dibuat dengan Next.js + React + Tailwind CSS. Pembayaran menggunakan **Xendit Invoice** (nyata, mode test tersedia); data produk & pesanan masih di sisi klien (`localStorage`).
 
 ## ✨ Fitur
 
@@ -28,6 +28,9 @@ Aplikasi web MVP ala **ASTRO** (on-demand grocery & essentials delivery) untuk I
 # Install dependencies
 npm install
 
+# Salin env contoh lalu isi kredensial Xendit (lihat bagian di bawah)
+cp .env.example .env.local
+
 # Mode pengembangan (http://localhost:3000)
 npm run dev
 
@@ -35,6 +38,41 @@ npm run dev
 npm run build
 npm run start
 ```
+
+## 💳 Integrasi Pembayaran (Xendit)
+
+Checkout menggunakan **Xendit Invoice** — halaman pembayaran hosted yang mendukung Virtual Account, e-wallet, QRIS, kartu, dan retail outlet sekaligus. Pola integrasinya **tanpa database** (Opsi A): aplikasi membuat invoice, mengarahkan pengguna ke halaman bayar Xendit, lalu memverifikasi status saat pengguna kembali.
+
+### Alur
+
+```
+Checkout → POST /api/checkout → Xendit Create Invoice → redirect ke invoice_url
+   → user bayar → redirect balik ke /orders/[id]?payment=success
+   → GET /api/invoice-status memverifikasi status → order ditandai "Lunas"
+```
+
+### Setup
+
+1. Buat akun di [xendit.co](https://www.xendit.co) dan ambil **Secret API Key** (Settings → API Keys). Gunakan key **TEST** (`xnd_development_...`) untuk uji coba.
+2. Untuk lokal, buat file `.env.local`:
+   ```env
+   XENDIT_SECRET_KEY=xnd_development_xxxxxxxxxxxx
+   NEXT_PUBLIC_BASE_URL=http://localhost:3000
+   ```
+3. Untuk produksi (Vercel): buka **Project → Settings → Environment Variables**, tambahkan:
+   - `XENDIT_SECRET_KEY` → secret key Anda
+   - `NEXT_PUBLIC_BASE_URL` → `https://satset-groceries.vercel.app`
+
+   Lalu **Redeploy** agar variabel terpakai.
+
+> ⚠️ **Jangan pernah** menaruh secret key di kode atau meng-commit-nya. Key hanya dipakai di server (API routes), tidak pernah terekspos ke browser.
+
+### Endpoint API
+
+| Route | Fungsi |
+|-------|--------|
+| `POST /api/checkout` | Membuat invoice Xendit, mengembalikan `invoiceUrl` |
+| `GET /api/invoice-status?id=<invoiceId>` | Mengecek status pembayaran invoice |
 
 ## 📁 Struktur Proyek
 
@@ -44,13 +82,16 @@ src/
 │   ├── layout.tsx          # Root layout (header, footer, providers)
 │   ├── page.tsx            # Beranda (katalog)
 │   ├── cart/page.tsx       # Keranjang
-│   ├── checkout/page.tsx   # Checkout + pembayaran simulasi
-│   └── orders/
-│       ├── page.tsx        # Riwayat pesanan
-│       └── [id]/page.tsx   # Detail + pelacakan pengiriman
-├── components/             # Header, Footer, Catalog, ProductCard, dll.
+│   ├── checkout/page.tsx   # Checkout + buat invoice Xendit
+│   ├── orders/
+│   │   ├── page.tsx        # Riwayat pesanan
+│   │   └── [id]/page.tsx   # Detail + status bayar + pelacakan pengiriman
+│   └── api/
+│       ├── checkout/route.ts        # Buat invoice Xendit
+│       └── invoice-status/route.ts  # Cek status pembayaran
+├── components/             # Header, Footer, Catalog, PaymentStatusBanner, dll.
 ├── context/                # CartContext, OrdersContext
-└── lib/                    # data (produk), types, helpers, konstanta
+└── lib/                    # data (produk), types, helpers, xendit client
 ```
 
 ## 🔭 Pengembangan Selanjutnya (ide)

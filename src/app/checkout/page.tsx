@@ -5,17 +5,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useOrders } from "@/context/OrdersContext";
-import { formatIDR } from "@/lib/format";
+import { formatIDR, discountedPrice } from "@/lib/format";
 import {
   DELIVERY_FEE,
   FREE_DELIVERY_MIN,
   DEFAULT_ETA_MINUTES,
-  PAYMENT_METHODS,
 } from "@/lib/constants";
 import type { DeliveryAddress, Order } from "@/lib/types";
 
 function makeOrderId(): string {
-  return "AM-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+  return "SATSET-" + Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
 export default function CheckoutPage() {
@@ -29,17 +28,16 @@ export default function CheckoutPage() {
     addressLine: "",
     note: "",
   });
-  const [paymentMethod, setPaymentMethod] = useState<string>(
-    PAYMENT_METHODS[0].id
-  );
+  const [email, setEmail] = useState("");
   const [processing, setProcessing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const deliveryFee =
     subtotal >= FREE_DELIVERY_MIN || subtotal === 0 ? 0 : DELIVERY_FEE;
   const total = subtotal + deliveryFee;
 
-  // If cart empties (e.g. after order), bounce home.
+  // If cart empties (e.g. after order), bounce home — unless we're mid-redirect.
   useEffect(() => {
     if (items.length === 0 && !processing) {
       router.replace("/");
@@ -53,37 +51,83 @@ export default function CheckoutPage() {
       e.phone = "Nomor telepon tidak valid";
     if (address.addressLine.trim().length < 10)
       e.addressLine = "Alamat terlalu singkat";
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+      e.email = "Format email tidak valid";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const placeOrder = async (ev: React.FormEvent) => {
     ev.preventDefault();
+    setApiError(null);
     if (!validate()) return;
     setProcessing(true);
 
-    // Simulate payment processing latency.
-    await new Promise((r) => setTimeout(r, 1500));
+    const orderId = makeOrderId();
 
-    const method =
-      PAYMENT_METHODS.find((m) => m.id === paymentMethod)?.label ?? paymentMethod;
-
+    // Build the payment order once, so we can persist it before redirecting.
     const order: Order = {
-      id: makeOrderId(),
+      id: orderId,
       items,
       address,
       subtotal,
       deliveryFee,
       total,
-      paymentMethod: method,
+      paymentMethod: "Xendit",
       createdAt: new Date().toISOString(),
       status: "confirmed",
       etaMinutes: DEFAULT_ETA_MINUTES,
+      paymentStatus: "pending",
     };
 
-    addOrder(order);
-    clearCart();
-    router.push(`/orders/${order.id}?new=1`);
+    // Line items for the Xendit invoice. Add delivery fee as its own line.
+    const invoiceItems = items.map(({ product, quantity }) => ({
+      name: product.name,
+      quantity,
+      price: discountedPrice(product.price, product.discountPercent),
+    }));
+    if (deliveryFee > 0) {
+      invoiceItems.push({ name: "Ongkos kirim", quantity: 1, price: deliveryFee });
+    }
+
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          amount: total,
+          items: invoiceItems,
+          customerName: address.fullName,
+          payerEmail: email || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.invoiceUrl) {
+        setApiError(
+          data.detail || data.error || "Gagal membuat pembayaran. Coba lagi."
+        );
+        setProcessing(false);
+        return;
+      }
+
+      // Persist the order (with invoice info) so it appears in history and
+      // can be verified when the user returns from Xendit.
+      addOrder({
+        ...order,
+        xenditInvoiceId: data.invoiceId,
+        xenditInvoiceUrl: data.invoiceUrl,
+      });
+      clearCart();
+
+      // Redirect the user to the Xendit hosted payment page.
+      window.location.href = data.invoiceUrl;
+    } catch {
+      setApiError("Tidak dapat terhubung ke server pembayaran. Coba lagi.");
+      setProcessing(false);
+    }
   };
 
   const inputClass = (field: string) =>
@@ -143,6 +187,21 @@ export default function CheckoutPage() {
             </div>
             <div className="mt-3">
               <label className="mb-1 block text-xs font-medium text-gray-500">
+                Email (untuk bukti pembayaran, opsional)
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputClass("email")}
+                placeholder="nama@email.com"
+              />
+              {errors.email && (
+                <p className="mt-1 text-xs text-red-500">{errors.email}</p>
+              )}
+            </div>
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-medium text-gray-500">
                 Alamat Lengkap
               </label>
               <textarea
@@ -178,35 +237,36 @@ export default function CheckoutPage() {
           {/* Payment */}
           <section className="rounded-2xl border border-gray-100 bg-white p-5">
             <h2 className="mb-3 flex items-center gap-2 font-bold">
-              💳 Metode Pembayaran
+              💳 Pembayaran
             </h2>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {PAYMENT_METHODS.map((m) => (
-                <label
-                  key={m.id}
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm transition ${
-                    paymentMethod === m.id
-                      ? "border-brand bg-brand/5"
-                      : "border-gray-200 hover:border-brand/40"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="payment"
-                    value={m.id}
-                    checked={paymentMethod === m.id}
-                    onChange={() => setPaymentMethod(m.id)}
-                    className="accent-brand"
-                  />
-                  <span className="text-lg">{m.icon}</span>
-                  <span className="font-medium">{m.label}</span>
-                </label>
-              ))}
+            <div className="flex items-start gap-3 rounded-xl border border-brand/20 bg-brand/5 p-4">
+              <span className="text-2xl">🔒</span>
+              <div className="text-sm">
+                <p className="font-semibold text-brand-dark">
+                  Pembayaran aman via Xendit
+                </p>
+                <p className="mt-1 text-gray-600">
+                  Setelah menekan tombol bayar, kamu akan diarahkan ke halaman
+                  pembayaran Xendit. Pilih metode favoritmu di sana:
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+                  {[
+                    "🏦 Virtual Account",
+                    "📱 E-Wallet",
+                    "🔳 QRIS",
+                    "💳 Kartu",
+                    "🏪 Retail",
+                  ].map((m) => (
+                    <span
+                      key={m}
+                      className="rounded-full bg-white px-2.5 py-1 text-gray-600 ring-1 ring-gray-200"
+                    >
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
-            <p className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-700">
-              ⚠️ Ini adalah demo — pembayaran hanya disimulasikan, tidak ada
-              transaksi nyata.
-            </p>
           </section>
         </div>
 
@@ -246,6 +306,12 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {apiError && (
+              <p className="mt-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-600">
+                ⚠️ {apiError}
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={processing}
@@ -254,12 +320,15 @@ export default function CheckoutPage() {
               {processing ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                  Memproses…
+                  Mengarahkan ke pembayaran…
                 </>
               ) : (
                 `Bayar ${formatIDR(total)}`
               )}
             </button>
+            <p className="mt-2 text-center text-[11px] text-gray-400">
+              Kamu akan diarahkan ke halaman pembayaran Xendit yang aman.
+            </p>
           </div>
         </div>
       </form>

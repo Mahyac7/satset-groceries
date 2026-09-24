@@ -2,18 +2,31 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
+import { useCallback } from "react";
 import { useOrders } from "@/context/OrdersContext";
 import { formatIDR, discountedPrice } from "@/lib/format";
 import { ORDER_STEPS, statusIndex } from "@/lib/orderStatus";
+import { PaymentStatusBanner } from "@/components/PaymentStatusBanner";
 
 export default function OrderDetailPage() {
   const params = useParams();
   const search = useSearchParams();
-  const isNew = search.get("new") === "1";
+  const paymentParam = search.get("payment"); // "success" | "failed" | null
   const id = String(params.id);
-  const { orders, getOrder } = useOrders();
+  const { orders, getOrder, updateOrder } = useOrders();
 
   const order = getOrder(id);
+
+  const handlePaid = useCallback(
+    (paidAt: string) => {
+      updateOrder(id, { paymentStatus: "paid", paidAt });
+    },
+    [id, updateOrder]
+  );
+
+  const handleFailed = useCallback(() => {
+    updateOrder(id, { paymentStatus: "failed" });
+  }, [id, updateOrder]);
 
   // Orders live in localStorage; on first client render `orders` may be empty.
   if (orders.length === 0) {
@@ -39,23 +52,18 @@ export default function OrderDetailPage() {
     );
   }
 
+  const isPaid = order.paymentStatus === "paid";
   const currentStep = statusIndex(order.status);
   const delivered = order.status === "delivered";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      {isNew && (
-        <div className="mb-4 flex items-center gap-3 rounded-2xl bg-green-50 p-4 text-green-800">
-          <span className="text-2xl">🎉</span>
-          <div>
-            <p className="font-bold">Pesanan berhasil dibuat!</p>
-            <p className="text-sm">
-              Terima kasih sudah belanja di Satset. Pantau pengiriman di
-              bawah.
-            </p>
-          </div>
-        </div>
-      )}
+      <PaymentStatusBanner
+        order={order}
+        justReturnedSuccess={paymentParam === "success"}
+        onPaid={handlePaid}
+        onFailed={handleFailed}
+      />
 
       <Link href="/orders" className="text-sm text-gray-400 hover:text-gray-600">
         ← Semua pesanan
@@ -71,60 +79,66 @@ export default function OrderDetailPage() {
         </span>
       </div>
 
-      {/* Tracking */}
+      {/* Tracking — only meaningful once payment is completed */}
       <section className="mt-4 rounded-2xl border border-gray-100 bg-white p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-bold">Status Pengiriman</h2>
-          {!delivered && (
+          {isPaid && !delivered && (
             <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand-dark">
               ⏱️ Estimasi ~{order.etaMinutes} menit
             </span>
           )}
         </div>
 
-        <ol className="relative space-y-6">
-          {ORDER_STEPS.map((step, idx) => {
-            const done = idx <= currentStep;
-            const active = idx === currentStep;
-            return (
-              <li key={step.status} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-full text-base transition ${
-                      done
-                        ? "bg-brand text-white"
-                        : "bg-gray-100 text-gray-400"
-                    } ${active && !delivered ? "ring-4 ring-brand/20" : ""}`}
-                  >
-                    {step.icon}
-                  </div>
-                  {idx < ORDER_STEPS.length - 1 && (
+        {!isPaid ? (
+          <p className="rounded-lg bg-gray-50 p-3 text-sm text-gray-500">
+            🔒 Pelacakan pengiriman akan aktif setelah pembayaran berhasil.
+          </p>
+        ) : (
+          <ol className="relative space-y-6">
+            {ORDER_STEPS.map((step, idx) => {
+              const done = idx <= currentStep;
+              const active = idx === currentStep;
+              return (
+                <li key={step.status} className="flex gap-3">
+                  <div className="flex flex-col items-center">
                     <div
-                      className={`mt-1 h-8 w-0.5 ${
-                        idx < currentStep ? "bg-brand" : "bg-gray-200"
-                      }`}
-                    />
-                  )}
-                </div>
-                <div className="pb-1">
-                  <p
-                    className={`font-semibold ${
-                      done ? "text-gray-900" : "text-gray-400"
-                    }`}
-                  >
-                    {step.label}
-                    {active && !delivered && (
-                      <span className="ml-2 inline-block animate-pulse text-xs font-normal text-brand">
-                        ● sedang berlangsung
-                      </span>
+                      className={`flex h-9 w-9 items-center justify-center rounded-full text-base transition ${
+                        done
+                          ? "bg-brand text-white"
+                          : "bg-gray-100 text-gray-400"
+                      } ${active && !delivered ? "ring-4 ring-brand/20" : ""}`}
+                    >
+                      {step.icon}
+                    </div>
+                    {idx < ORDER_STEPS.length - 1 && (
+                      <div
+                        className={`mt-1 h-8 w-0.5 ${
+                          idx < currentStep ? "bg-brand" : "bg-gray-200"
+                        }`}
+                      />
                     )}
-                  </p>
-                  <p className="text-sm text-gray-400">{step.description}</p>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+                  </div>
+                  <div className="pb-1">
+                    <p
+                      className={`font-semibold ${
+                        done ? "text-gray-900" : "text-gray-400"
+                      }`}
+                    >
+                      {step.label}
+                      {active && !delivered && (
+                        <span className="ml-2 inline-block animate-pulse text-xs font-normal text-brand">
+                          ● sedang berlangsung
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-400">{step.description}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </section>
 
       {/* Delivery address */}
@@ -181,8 +195,26 @@ export default function OrderDetailPage() {
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Pembayaran</span>
+            <span className="text-gray-500">Metode</span>
             <span>{order.paymentMethod}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Status bayar</span>
+            <span
+              className={
+                isPaid
+                  ? "font-semibold text-green-600"
+                  : order.paymentStatus === "failed"
+                  ? "font-semibold text-red-600"
+                  : "font-semibold text-amber-600"
+              }
+            >
+              {isPaid
+                ? "Lunas"
+                : order.paymentStatus === "failed"
+                ? "Gagal"
+                : "Menunggu"}
+            </span>
           </div>
           <div className="my-1 border-t border-dashed border-gray-200" />
           <div className="flex justify-between text-base font-bold">

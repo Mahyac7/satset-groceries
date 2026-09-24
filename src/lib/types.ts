@@ -34,6 +34,8 @@ export type OrderStatus =
   | "on_the_way"
   | "delivered";
 
+export type PaymentStatus = "pending" | "paid" | "failed";
+
 export interface Order {
   id: string;
   items: CartItem[];
@@ -45,4 +47,9 @@ export interface Order {
   createdAt: string; // ISO string
   status: OrderStatus;
   etaMinutes: number;
+  // Payment (Xendit) tracking
+  paymentStatus: PaymentStatus;
+  xenditInvoiceId?: string;
+  xenditInvoiceUrl?: string;
+  paidAt?: string; // ISO string, set when payment is confirmed
 }
