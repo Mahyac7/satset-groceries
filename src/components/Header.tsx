@@ -59,7 +59,7 @@ export function Header() {
         <Link href="/" className="flex shrink-0 items-center gap-2">
           <span className="text-2xl">⚡</span>
           <span className="text-lg font-extrabold tracking-tight">
-            Astro<span className="text-brand">Mart</span>
+            Sat<span className="text-brand">set</span>
           </span>
         </Link>
 

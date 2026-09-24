@@ -10,7 +10,7 @@ import {
 import type { CartItem, Product } from "@/lib/types";
 import { discountedPrice } from "@/lib/format";
 
-const STORAGE_KEY = "astro-mart-cart";
+const STORAGE_KEY = "satset-cart";
 
 interface CartState {
   items: CartItem[];
