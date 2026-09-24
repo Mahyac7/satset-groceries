@@ -21,6 +21,7 @@ const STATUS_FLOW: OrderStatus[] = [
 interface OrdersContextValue {
   orders: Order[];
   addOrder: (order: Order) => void;
+  updateOrder: (id: string, patch: Partial<Order>) => void;
   getOrder: (id: string) => Order | undefined;
 }
 
@@ -31,7 +32,9 @@ const OrdersContext = createContext<OrdersContextValue | null>(null);
  * advance its status through the flow (one step every ~20s for demo).
  */
 function computeStatus(order: Order): OrderStatus {
-  const elapsedSec = (Date.now() - new Date(order.createdAt).getTime()) / 1000;
+  // Delivery clock starts when payment is confirmed (paidAt), falling back to createdAt.
+  const startTime = new Date(order.paidAt ?? order.createdAt).getTime();
+  const elapsedSec = (Date.now() - startTime) / 1000;
   const stepSec = 20;
   const index = Math.min(
     Math.floor(elapsedSec / stepSec),
@@ -52,12 +55,14 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Recompute simulated statuses periodically.
+  // Recompute simulated delivery statuses periodically.
+  // Delivery only progresses once the payment is completed (paid).
   useEffect(() => {
     const tick = () => {
       setOrders((prev) => {
         let changed = false;
         const next = prev.map((o) => {
+          if (o.paymentStatus !== "paid") return o;
           const status = computeStatus(o);
           if (status !== o.status) {
             changed = true;
@@ -85,13 +90,19 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     setOrders((prev) => [order, ...prev]);
   }, []);
 
+  const updateOrder = useCallback((id: string, patch: Partial<Order>) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, ...patch } : o))
+    );
+  }, []);
+
   const getOrder = useCallback(
     (id: string) => orders.find((o) => o.id === id),
     [orders]
   );
 
   return (
-    <OrdersContext.Provider value={{ orders, addOrder, getOrder }}>
+    <OrdersContext.Provider value={{ orders, addOrder, updateOrder, getOrder }}>
       {children}
     </OrdersContext.Provider>
   );
