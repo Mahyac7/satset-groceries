@@ -50,7 +50,7 @@ export default function OrderDetailPage() {
           <div>
             <p className="font-bold">Pesanan berhasil dibuat!</p>
             <p className="text-sm">
-              Terima kasih sudah belanja di AstroMart. Pantau pengiriman di
+              Terima kasih sudah belanja di Satset. Pantau pengiriman di
               bawah.
             </p>
           </div>

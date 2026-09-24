@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { Order, OrderStatus } from "@/lib/types";
 
-const STORAGE_KEY = "astro-mart-orders";
+const STORAGE_KEY = "satset-orders";
 
 const STATUS_FLOW: OrderStatus[] = [
   "confirmed",

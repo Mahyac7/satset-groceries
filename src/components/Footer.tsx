@@ -6,7 +6,7 @@ export function Footer() {
           <div className="flex items-center gap-2">
             <span className="text-xl">⚡</span>
             <span className="font-extrabold">
-              Astro<span className="text-brand">Mart</span>
+              Sat<span className="text-brand">set</span>
             </span>
           </div>
           <p className="text-sm text-gray-500">
@@ -15,7 +15,7 @@ export function Footer() {
           </p>
         </div>
         <p className="mt-4 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} AstroMart. Dibuat sebagai contoh aplikasi
+          © {new Date().getFullYear()} Satset. Dibuat sebagai contoh aplikasi
           quick-commerce.
         </p>
       </div>

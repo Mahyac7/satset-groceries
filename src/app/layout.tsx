@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "AstroMart — Belanja Kebutuhan Harian, Kilat!",
+  title: "Satset — Belanja Kebutuhan Harian, Kilat!",
   description:
     "Platform on-demand untuk belanja groceries & kebutuhan harian, diantar cepat ke rumahmu.",
 };

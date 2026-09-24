@@ -1,4 +1,4 @@
-# ⚡ AstroMart — MVP Quick-Commerce Web App
+# ⚡ Satset — MVP Quick-Commerce Web App
 
 Aplikasi web MVP ala **ASTRO** (on-demand grocery & essentials delivery) untuk Indonesia. Dibuat dengan Next.js + React + Tailwind CSS. Semua data produk dan pembayaran disimulasikan (tidak ada backend/transaksi nyata).
 
