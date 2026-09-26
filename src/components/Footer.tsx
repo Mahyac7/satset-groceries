@@ -10,13 +10,11 @@ export function Footer() {
             </span>
           </div>
           <p className="text-sm text-gray-500">
-            Belanja kebutuhan harian, diantar kilat. Demo MVP — pembayaran
-            disimulasikan.
+            Belanja kebutuhan harian, diantar kilat.
           </p>
         </div>
         <p className="mt-4 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} Satset. Dibuat sebagai contoh aplikasi
-          quick-commerce.
+          © {new Date().getFullYear()} Satset
         </p>
       </div>
     </footer>
