@@ -79,11 +79,11 @@ export function Header() {
       </div>
 
       <div className="border-t border-gray-50 bg-brand/5">
-        <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-1.5 text-xs text-brand-dark">
-          <span>🏍️</span>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-0.5 px-4 py-1.5 text-xs text-brand-dark">
           <span className="font-medium">
-            Diantar kilat ~15 menit ke lokasimu • Gratis ongkir min. Rp50.000
+            🏍️ Diantar kilat ~15 menit • Gratis ongkir min. Rp50.000
           </span>
+          <span className="font-semibold">📍 Khusus area BSD – Serpong</span>
         </div>
       </div>
     </header>
