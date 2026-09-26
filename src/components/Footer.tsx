@@ -9,9 +9,12 @@ export function Footer() {
               Sat<span className="text-brand">set</span>
             </span>
           </div>
-          <p className="text-sm text-gray-500">
-            Belanja kebutuhan harian, diantar kilat.
-          </p>
+          <div className="text-sm text-gray-500">
+            <p>Belanja kebutuhan harian, diantar kilat.</p>
+            <p className="mt-1 text-xs font-medium text-brand">
+              📍 Khusus area BSD – Serpong
+            </p>
+          </div>
         </div>
         <p className="mt-4 text-center text-xs text-gray-400">
           © {new Date().getFullYear()} Satset
